@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: campeonato-app
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+    ports:
+      - "3005:3005"
+    restart: unless-stopped
+    networks:
+      - tanstack-network
+
+networks:
+  tanstack-network:
+    driver: bridge

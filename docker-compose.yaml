@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: campeonato-app
+    container_name: weather-app
     environment:
       - NODE_ENV=production
       - PORT=3005

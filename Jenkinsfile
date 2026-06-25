@@ -8,30 +8,35 @@ pipeline {
 
     stages {
         stage('Checkout') {
+            steps { checkout scm }
+        }
+
+        stage('Write .env') {
             steps {
-                checkout scm
+                withCredentials([string(credentialsId: 'vite-openweather-api-key', variable: 'VITE_OPENWEATHER_API_KEY')]) {
+                    sh '''
+                      set -eu
+                      printf "VITE_OPENWEATHER_API_KEY=%s\n" "$VITE_OPENWEATHER_API_KEY" > .env
+                      chmod 600 .env
+                    '''
+                }
             }
         }
 
         stage('Build and Start') {
             steps {
-                script {
-                    sh 'docker compose up --build -d'
-                }
+                sh 'docker compose up --build -d'
             }
         }
 
         stage('Verify') {
-            steps {
-                script {
-                    sh 'docker compose ps'
-                }
-            }
+            steps { sh 'docker compose ps' }
         }
     }
 
     post {
         always {
+            sh 'rm -f .env'
             echo 'Pipeline execution completed.'
         }
         failure {

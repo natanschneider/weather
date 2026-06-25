@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import {
@@ -32,6 +32,14 @@ type WeatherDay = {
   windSpeed: number
   pressure: number
   visibility: number
+  icon: string
+  hourly: Array<WeatherHour>
+}
+
+type WeatherHour = {
+  time: string
+  temp: number
+  description: string
   icon: string
 }
 
@@ -246,9 +254,7 @@ function EmptyState({
         {isLocating ? 'Finding location...' : 'Use current location'}
       </button>
       {locationError && (
-        <p className="m-0 max-w-md text-sm text-destructive">
-          {locationError}
-        </p>
+        <p className="m-0 max-w-md text-sm text-destructive">{locationError}</p>
       )}
     </div>
   )
@@ -310,16 +316,29 @@ function CurrentWeather({ data }: { data: WeatherData }) {
 }
 
 function Forecast({ days }: { days: Array<WeatherDay> }) {
+  const [selectedDate, setSelectedDate] = useState(days[0]?.date ?? '')
+  const selectedDay =
+    days.find((day) => day.date === selectedDate) ?? days[0] ?? null
+
+  useEffect(() => {
+    if (!days.some((day) => day.date === selectedDate)) {
+      setSelectedDate(days[0]?.date ?? '')
+    }
+  }, [days, selectedDate])
+
   return (
-    <section>
+    <section className="grid gap-4">
       <h2 className="m-0 mb-3 text-lg font-semibold tracking-tight">
         Forecast
       </h2>
       <div className="grid gap-3 sm:grid-cols-3">
         {days.map((day) => (
-          <article
+          <button
             key={`${day.date}-${day.icon}`}
-            className="rounded-md border border-border bg-card p-4 shadow-sm"
+            type="button"
+            onClick={() => setSelectedDate(day.date)}
+            aria-pressed={selectedDay?.date === day.date}
+            className="rounded-md border border-border bg-card p-4 text-left shadow-sm transition hover:border-ring hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none aria-pressed:border-ring aria-pressed:bg-accent"
           >
             <div className="flex items-center justify-between gap-3">
               <p className="m-0 text-sm font-semibold">{day.date}</p>
@@ -337,10 +356,120 @@ function Forecast({ days }: { days: Array<WeatherDay> }) {
               <CloudSun size={16} />
               {day.tempMax}° / {day.tempMin}°
             </div>
-          </article>
+          </button>
         ))}
       </div>
+      {selectedDay && <HourlyGraph day={selectedDay} />}
     </section>
+  )
+}
+
+function HourlyGraph({ day }: { day: WeatherDay }) {
+  const temperatures = day.hourly.map((hour) => hour.temp)
+  const minTemp = Math.min(...temperatures)
+  const maxTemp = Math.max(...temperatures)
+  const range = Math.max(maxTemp - minTemp, 1)
+  const width = 640
+  const height = 220
+  const paddingX = 36
+  const paddingY = 34
+  const graphWidth = width - paddingX * 2
+  const graphHeight = height - paddingY * 2
+  const points = day.hourly.map((hour, index) => {
+    const x =
+      paddingX +
+      (day.hourly.length === 1
+        ? graphWidth / 2
+        : (index / (day.hourly.length - 1)) * graphWidth)
+    const y = paddingY + ((maxTemp - hour.temp) / range) * graphHeight
+
+    return { ...hour, x, y }
+  })
+  const line = points.map((point) => `${point.x},${point.y}`).join(' ')
+
+  return (
+    <article className="rounded-md border border-border bg-card p-4 shadow-sm">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="m-0 text-base font-semibold tracking-tight">
+            Hourly forecast
+          </h3>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">{day.date}</p>
+        </div>
+        <p className="m-0 text-sm font-medium text-muted-foreground">
+          {minTemp}° to {maxTemp}°C
+        </p>
+      </div>
+
+      <div className="mt-4 overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={`Hourly temperature forecast for ${day.date}`}
+          className="h-56 min-w-[38rem] w-full"
+        >
+          {[0, 0.5, 1].map((ratio) => {
+            const y = paddingY + ratio * graphHeight
+            const label = Math.round(maxTemp - ratio * range)
+
+            return (
+              <g key={ratio}>
+                <line
+                  x1={paddingX}
+                  x2={width - paddingX}
+                  y1={y}
+                  y2={y}
+                  className="stroke-border"
+                  strokeDasharray="4 6"
+                />
+                <text
+                  x={0}
+                  y={y + 4}
+                  className="fill-muted-foreground text-[12px]"
+                >
+                  {label}°
+                </text>
+              </g>
+            )
+          })}
+          <polyline
+            points={line}
+            fill="none"
+            className="stroke-foreground"
+            strokeWidth="3"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          {points.map((point) => (
+            <g key={`${point.time}-${point.temp}`}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="4"
+                className="fill-background stroke-foreground"
+                strokeWidth="2"
+              />
+              <text
+                x={point.x}
+                y={point.y - 10}
+                textAnchor="middle"
+                className="fill-foreground text-[12px] font-semibold"
+              >
+                {point.temp}°
+              </text>
+              <text
+                x={point.x}
+                y={height - 8}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[12px]"
+              >
+                {point.time}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    </article>
   )
 }
 
@@ -349,7 +478,7 @@ function Metric({
   label,
   value,
 }: {
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
   value: string
 }) {

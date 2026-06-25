@@ -49,8 +49,11 @@ const weather = createServerFn({ method: 'GET', strict: false })
             weather.list.forEach((item) => {
                 const date = new Date(item.dt * 1000)
                 const dayKey = date.toLocaleDateString('pt-BR')
+                const hour = date.toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                })
 
-                // Guardar apenas o primeiro item de cada dia
                 if (!days[dayKey]) {
                     days[dayKey] = {
                         date: dayKey,
@@ -63,8 +66,24 @@ const weather = createServerFn({ method: 'GET', strict: false })
                         pressure: item.main.pressure,
                         visibility: item.visibility,
                         icon: item.weather[0].icon,
+                        hourly: [],
                     }
                 }
+
+                days[dayKey].tempMax = Math.max(
+                    days[dayKey].tempMax,
+                    Math.round(item.main.temp_max)
+                )
+                days[dayKey].tempMin = Math.min(
+                    days[dayKey].tempMin,
+                    Math.round(item.main.temp_min)
+                )
+                days[dayKey].hourly.push({
+                    time: hour,
+                    temp: Math.round(item.main.temp),
+                    description: item.weather[0].description,
+                    icon: item.weather[0].icon,
+                })
             })
 
             const forecast = Object.values(days).slice(0, 3)

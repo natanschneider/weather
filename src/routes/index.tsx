@@ -388,7 +388,7 @@ function HourlyGraph({ day }: { day: WeatherDay }) {
   const line = points.map((point) => `${point.x},${point.y}`).join(' ')
 
   return (
-    <article className="rounded-md border border-border bg-card p-4 shadow-sm">
+    <article className="rounded-md border border-border bg-card p-4 shadow-sm overflow-y-auto">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 className="m-0 text-base font-semibold tracking-tight">
